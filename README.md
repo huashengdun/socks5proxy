@@ -1,7 +1,8 @@
-<p align="center"><em>A simple socks5 proxy based on asyncio</em></p>
+A simple socks5 proxy based on asyncio
+======================================
 
 Usage
-=====
+-----
 
 ### *Genereate the certificate and key files*
 ```
@@ -23,7 +24,7 @@ $ python3 client -s <server-ip> -l 1080
 
 ### *Get help*
 ```
-$ python3 server.py --help
+$ python3 client.py --help
 usage: server.py [-h] [-c CONFIG] [-s SERVER_IP] [-p SERVER_PORT] [-b BIND_IP]
                  [-l LISTEN_PORT] [-t CRT_FILE] [-k KEY_FILE] [-v LOG_LEVEL]
                  [-f LOG_FILE]
@@ -50,7 +51,7 @@ optional arguments:
                         log file
 ```
 
-### *Python version support*
+##### *Python version support*
 ```
 3.4+
 ```
