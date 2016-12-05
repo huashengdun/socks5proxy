@@ -72,8 +72,6 @@ def request(event_loop, reader, writer):
     yield from write_and_drain(writer, reply)
     # socks5 connection opened
 
-    logger.info(result[1])
-    logger.info(result[2])
     dest = result[1] + b':' + str(result[2]).encode()
     logger.info('connecting to {}'.format(dest.decode()))
     yield from write_and_drain(r_writer, dest)
