@@ -17,6 +17,9 @@ class ConfigError(Exception):
 
 
 class Config(object):
+
+    cfgs_exlucded = ['config', 'log_file']
+
     def __init__(self, dic,  *args, **kwargs):
         self.__dict__ = dic
         self.check_all_confs()
@@ -55,8 +58,6 @@ class Config(object):
 
 class ClientConfig(Config):
 
-    cfgs_exlucded = ['config', 'log_file']
-
     def check_all_confs(self):
         self.check_non_confs()
         self.check_server_ip()
@@ -79,7 +80,6 @@ class ClientConfig(Config):
 
 
 class ServerConfig(Config):
-    cfgs_exlucded = ['config', 'log_file', 'bind_ip', 'listen_port']
 
     def check_all_confs(self):
         self.check_non_confs()
@@ -87,15 +87,17 @@ class ServerConfig(Config):
         self.check_server_port()
 
 
-def parse_commands():
+def parse_commands(name):
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', help='config file')
     parser.add_argument('-s', '--server_ip', help='server ip')
     parser.add_argument('-p', '--server_port', type=int, default=10000,
                         help='server port')
-    parser.add_argument('-b', '--bind_ip', default='127.0.0.1', help='bind ip')
-    parser.add_argument('-l', '--listen_port', type=int, default=7070,
-                        help='listen port')
+    if name == 'client':
+        parser.add_argument('-b', '--bind_ip', default='127.0.0.1',
+                            help='bind ip')
+        parser.add_argument('-l', '--listen_port', type=int, default=7070,
+                            help='listen port')
     parser.add_argument('-t', '--crt_file', default='ssl.crt', help='crt file')
     parser.add_argument('-k', '--key_file', default='ssl.key', help='key file')
     parser.add_argument('-v', '--log_level', default='info', help='log level')

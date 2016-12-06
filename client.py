@@ -116,7 +116,7 @@ def run():
 
 
 if __name__ == '__main__':
-    cmds = parse_commands()
+    cmds = parse_commands(logger.name)
     conf = ClientConfig(cmds)
     ssl_context.load_verify_locations(conf.crt_file)
     log_cfg = get_logging_config(

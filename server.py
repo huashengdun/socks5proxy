@@ -69,7 +69,7 @@ def run():
 
 
 if __name__ == '__main__':
-    cmds = parse_commands()
+    cmds = parse_commands(logger.name)
     conf = ServerConfig(cmds)
     ssl_context.load_cert_chain(conf.crt_file, conf.key_file)
     log_cfg = get_logging_config(
