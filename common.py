@@ -6,7 +6,6 @@ import sys
 
 
 BUF_SIZE = 32 * 1024
-DEFAULT_TIMEOUT = 300
 FORMATTER = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOGGING_LEVEL = logging.INFO
 
@@ -95,7 +94,7 @@ def parse_commands():
     parser.add_argument('-p', '--server_port', type=int, default=10000,
                         help='server port')
     parser.add_argument('-b', '--bind_ip', default='127.0.0.1', help='bind ip')
-    parser.add_argument('-l', '--listen_port', type=int, default=1080,
+    parser.add_argument('-l', '--listen_port', type=int, default=7070,
                         help='listen port')
     parser.add_argument('-t', '--crt_file', default='ssl.crt', help='crt file')
     parser.add_argument('-k', '--key_file', default='ssl.key', help='key file')
@@ -140,27 +139,41 @@ def write_and_drain(writer, data):
 
 
 @asyncio.coroutine
-def read_and_write(reader, writer):
-    try:
-        while True:
+def read_and_write(reader, writer, is_remote_writer):
+    while True:
+        try:
             data = yield from reader.read(BUF_SIZE)
-            if not data:
-                return
+        except Exception as e:
+            logger.debug(e)
+            if not is_remote_writer:
+                return True
+            data = None
+
+        if not data:
+            return
+
+        try:
             yield from write_and_drain(writer, data)
-    except Exception as e:
-        logger.debug(e)
+        except Exception as e:
+            logger.debug(e)
+            if is_remote_writer:
+                return True
+            return
 
 
 @asyncio.coroutine
-def handle_tcp(event_loop, reader, writer, r_reader, r_writer):
-    l2r = event_loop.create_task(read_and_write(reader, r_writer))
-    r2l = event_loop.create_task(read_and_write(r_reader, writer))
-    coros = [l2r, r2l]
+def handle_tcp(reader, writer, r_reader, r_writer):
+    l2r = asyncio.ensure_future(read_and_write(reader, r_writer, True))
+    r2l = asyncio.ensure_future(read_and_write(r_reader, writer, False))
+    futs = [l2r, r2l]
 
-    _, pending = yield from asyncio.wait(coros, timeout=DEFAULT_TIMEOUT)
-    if pending:
-        for t in pending:
-            t.cancel()
+    for fut in asyncio.as_completed(futs):
+        result = yield from fut
+        if result:
+            for f in futs:
+                if not f.done():
+                    f.set_result(None)
+            return True
 
 
 def clean_tasks(event_loop):

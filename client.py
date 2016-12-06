@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 import socket
 import ssl
@@ -34,8 +33,9 @@ def parse_header(data):
             addrlen = ord(data[1:2])
             if len(data) >= 2 + addrlen:
                 dest_addr = data[2:2 + addrlen]
-                dest_port = struct.unpack('>H', data[2 + addrlen:4 +
-                                                     addrlen])[0]
+                dest_port = struct.unpack(
+                    '>H', data[2 + addrlen:4 + addrlen]
+                )[0]
                 header_length = 4 + addrlen
             else:
                 logger.warn('header is too short')
@@ -46,14 +46,14 @@ def parse_header(data):
 
     if dest_addr is None:
         return None
-    elif type(dest_addr) == str:
-        dest_addr = dest_addr.encode()
+    elif type(dest_addr) == bytes:
+        dest_addr = dest_addr.decode()
 
     return addrtype, dest_addr, dest_port, header_length
 
 
 @asyncio.coroutine
-def request(event_loop, reader, writer):
+def request(reader, writer):
     address = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*address))
     data = yield from reader.read(256)
@@ -72,20 +72,28 @@ def request(event_loop, reader, writer):
     yield from write_and_drain(writer, reply)
     # socks5 connection opened
 
-    dest = result[1] + b':' + str(result[2]).encode()
-    logger.info('connecting to {}'.format(dest.decode()))
-    yield from write_and_drain(r_writer, dest)
+    dest = '{}:{}'.format(result[1], result[2])
+    dest_b = dest.encode()
+    logger.info('connecting to {}'.format(dest))
+    yield from write_and_drain(r_writer, dest_b)
 
-    yield from handle_tcp(event_loop, reader, writer, r_reader, r_writer)
-    writer.close()
-    r_writer.close()
+    while True:
+        result = yield from handle_tcp(reader, writer, r_reader, r_writer)
+        r_writer.close()
+        if not result:
+            writer.close()
+            return
+        r_reader, r_writer = yield from asyncio.open_connection(
+            host=conf.server_ip, port=conf.server_port, ssl=ssl_context
+        )
+        logger.info('connecting to {}'.format(dest))
+        yield from write_and_drain(r_writer, dest_b)
 
 
 def run():
     event_loop = asyncio.get_event_loop()
     factory = asyncio.start_server(
-        functools.partial(request, event_loop),
-        host=conf.bind_ip, port=conf.listen_port
+        request, host=conf.bind_ip, port=conf.listen_port
     )
     logger.info('server address {}:{}'.format(
         conf.server_ip, conf.server_port)

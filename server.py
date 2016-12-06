@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 import ssl
 from common import (handle_tcp, parse_commands, ServerConfig,
@@ -14,13 +13,8 @@ ssl_context.check_hostname = False
 
 
 @asyncio.coroutine
-def serve(event_loop, reader, writer):
-    cli_addr = writer.get_extra_info('peername')
-    logger.info('connected from {}:{}'.format(*cli_addr))
-    data = yield from reader.read(128)
-    host, port = data.decode().split(':')
-    dest_addr = (host, int(port))
-    fut = asyncio.open_connection(*dest_addr)
+def connect_to_dest(dest):
+    fut = asyncio.open_connection(*dest)
     try:
         d_reader, d_writer = yield from asyncio.wait_for(
             fut, timeout=CONNECT_TIMEOUT
@@ -29,18 +23,33 @@ def serve(event_loop, reader, writer):
         logger.debug(e)
         return
 
-    logger.info('connected to {}:{}'.format(*dest_addr))
+    logger.info('connected to {}:{}'.format(*dest))
+    return d_reader, d_writer
 
-    yield from handle_tcp(event_loop, reader, writer, d_reader, d_writer)
-    writer.close()
-    d_writer.close()
+
+@asyncio.coroutine
+def serve(reader, writer):
+    cli_addr = writer.get_extra_info('peername')
+    logger.info('connected from {}:{}'.format(*cli_addr))
+    data = yield from reader.read(128)
+    host, port = data.decode().split(':')
+    dest = (host, int(port))
+    transport = yield from connect_to_dest(dest)
+
+    while transport:
+        d_reader, d_writer = transport
+        result = yield from handle_tcp(reader, writer, d_reader, d_writer)
+        d_writer.close()
+        if not result:
+            writer.close()
+            return
+        transport = yield from connect_to_dest(dest)
 
 
 def run():
     event_loop = asyncio.get_event_loop()
     factory = asyncio.start_server(
-        functools.partial(serve, event_loop),
-        host=conf.server_ip, port=conf.server_port, ssl=ssl_context
+        serve, host=conf.server_ip, port=conf.server_port, ssl=ssl_context
     )
     logger.info(
         'serving on {}:{}'.format(conf.server_ip, conf.server_port)
