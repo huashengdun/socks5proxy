@@ -51,5 +51,6 @@ optional arguments:
                         log file
 ```
 
-### Python version support
+Python version support
+======================
 3.4+
