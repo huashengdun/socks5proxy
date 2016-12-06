@@ -49,6 +49,27 @@ optional arguments:
                         log level
   -f LOG_FILE, --log_file LOG_FILE
                         log file
+
+$ python3 server.py --help
+usage: server.py [-h] [-c CONFIG] [-s SERVER_IP] [-p SERVER_PORT]
+                 [-t CRT_FILE] [-k KEY_FILE] [-v LOG_LEVEL] [-f LOG_FILE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        config file
+  -s SERVER_IP, --server_ip SERVER_IP
+                        server ip
+  -p SERVER_PORT, --server_port SERVER_PORT
+                        server port
+  -t CRT_FILE, --crt_file CRT_FILE
+                        crt file
+  -k KEY_FILE, --key_file KEY_FILE
+                        key file
+  -v LOG_LEVEL, --log_level LOG_LEVEL
+                        log level
+  -f LOG_FILE, --log_file LOG_FILE
+                        log file
 ```
 
 Python version support
