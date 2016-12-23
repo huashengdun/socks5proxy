@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import logging
 import socket
 import ssl
@@ -11,9 +12,6 @@ ADDRTYPE_IPV4 = 1
 ADDRTYPE_HOST = 3
 
 logger = logging.getLogger('client')
-
-ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-ssl_context.check_hostname = False
 
 
 def parse_header(data):
@@ -53,7 +51,7 @@ def parse_header(data):
 
 
 @asyncio.coroutine
-def request(reader, writer):
+def request(conf, ssl_context, reader, writer):
     address = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*address))
     data = yield from reader.read(256)
@@ -90,10 +88,22 @@ def request(reader, writer):
         yield from write_and_drain(r_writer, dest_b)
 
 
-def run():
+def main():
+    cmds = parse_commands(logger.name)
+    conf = ClientConfig(cmds)
+    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ssl_context.check_hostname = False
+    ssl_context.load_verify_locations(conf.crt_file)
+    log_cfg = get_logging_config(
+        log_level=conf.log_level, log_file=conf.log_file
+    )
+    logging.basicConfig(**log_cfg)
+    logger.debug(cmds)
+
     event_loop = asyncio.get_event_loop()
     factory = asyncio.start_server(
-        request, host=conf.bind_ip, port=conf.listen_port
+        functools.partial(request, conf, ssl_context), host=conf.bind_ip,
+        port=conf.listen_port
     )
     logger.info('server address {}:{}'.format(
         conf.server_ip, conf.server_port)
@@ -116,12 +126,4 @@ def run():
 
 
 if __name__ == '__main__':
-    cmds = parse_commands(logger.name)
-    conf = ClientConfig(cmds)
-    ssl_context.load_verify_locations(conf.crt_file)
-    log_cfg = get_logging_config(
-        log_level=conf.log_level, log_file=conf.log_file
-    )
-    logging.basicConfig(**log_cfg)
-    logger.debug(cmds)
-    run()
+    main()
