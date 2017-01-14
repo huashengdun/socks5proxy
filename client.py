@@ -7,7 +7,7 @@ import struct
 
 from common import (
     ClientConfig, get_logging_config, handle_tcp, parse_commands,
-    write_and_drain, clean_tasks, set_tcp_nodelay
+    write_and_drain, clean_tasks, set_tcp_nodelay, BUF_SIZE
 )
 
 ADDRTYPE_IPV4 = 1
@@ -57,9 +57,9 @@ def request(conf, ssl_context, reader, writer):
     set_tcp_nodelay(writer)
     address = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*address))
-    data = yield from reader.read(256)
+    data = yield from reader.read(BUF_SIZE)
     yield from write_and_drain(writer, b"\x05\x00")
-    data = yield from reader.read(256)
+    data = yield from reader.read(BUF_SIZE)
     mode = ord(data[1:2])
     if mode != 1:
         return
@@ -75,7 +75,7 @@ def request(conf, ssl_context, reader, writer):
     # socks5 connection opened
 
     dest = '{}:{}'.format(result[1], result[2])
-    dest_b = dest.encode()
+    dest_b = dest.encode('utf-8') + b'\n'
     logger.info('connecting to {}'.format(dest))
     yield from write_and_drain(r_writer, dest_b)
 

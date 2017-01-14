@@ -3,7 +3,7 @@ import logging
 import ssl
 from common import (
     handle_tcp, parse_commands, ServerConfig, get_logging_config, clean_tasks,
-    set_tcp_nodelay
+    write_and_drain, set_tcp_nodelay, BUF_SIZE
 )
 
 
@@ -32,14 +32,18 @@ def serve(reader, writer):
     set_tcp_nodelay(writer)
     cli_addr = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*cli_addr))
-    data = yield from reader.read(128)
-    host, port = data.decode().split(':')
-    dest = (host, int(port))
+    data = yield from reader.read(BUF_SIZE)
+    host, data = data.split(b'\n', 1)
+    hostname, port = host.decode('utf-8').split(':')
+    dest = (hostname, int(port))
     transport = yield from connect_to_dest(dest)
 
     while transport:
         d_reader, d_writer = transport
         set_tcp_nodelay(d_writer)
+        if data:
+            yield from write_and_drain(d_writer, data)
+            data = None
         result = yield from handle_tcp(reader, writer, d_reader, d_writer)
         d_writer.close()
         if not result:
