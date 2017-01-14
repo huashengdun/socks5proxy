@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import ssl
-from common import (handle_tcp, parse_commands, ServerConfig,
-                    get_logging_config, clean_tasks)
+from common import (
+    handle_tcp, parse_commands, ServerConfig, get_logging_config, clean_tasks,
+    set_tcp_nodelay
+)
 
 
 logger = logging.getLogger('server')
@@ -27,6 +29,7 @@ def connect_to_dest(dest):
 
 @asyncio.coroutine
 def serve(reader, writer):
+    set_tcp_nodelay(writer)
     cli_addr = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*cli_addr))
     data = yield from reader.read(128)
@@ -36,6 +39,7 @@ def serve(reader, writer):
 
     while transport:
         d_reader, d_writer = transport
+        set_tcp_nodelay(d_writer)
         result = yield from handle_tcp(reader, writer, d_reader, d_writer)
         d_writer.close()
         if not result:

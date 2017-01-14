@@ -5,8 +5,10 @@ import socket
 import ssl
 import struct
 
-from common import (ClientConfig, get_logging_config, handle_tcp,
-                    parse_commands, write_and_drain, clean_tasks)
+from common import (
+    ClientConfig, get_logging_config, handle_tcp, parse_commands,
+    write_and_drain, clean_tasks, set_tcp_nodelay
+)
 
 ADDRTYPE_IPV4 = 1
 ADDRTYPE_HOST = 3
@@ -52,6 +54,7 @@ def parse_header(data):
 
 @asyncio.coroutine
 def request(conf, ssl_context, reader, writer):
+    set_tcp_nodelay(writer)
     address = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*address))
     data = yield from reader.read(256)
@@ -65,6 +68,7 @@ def request(conf, ssl_context, reader, writer):
     r_reader, r_writer = yield from asyncio.open_connection(
         host=conf.server_ip, port=conf.server_port, ssl=ssl_context
     )
+    set_tcp_nodelay(r_writer)
     local = r_writer.get_extra_info('sockname')
     reply += socket.inet_aton(local[0]) + struct.pack(">H", local[1])
     yield from write_and_drain(writer, reply)
@@ -84,6 +88,7 @@ def request(conf, ssl_context, reader, writer):
         r_reader, r_writer = yield from asyncio.open_connection(
             host=conf.server_ip, port=conf.server_port, ssl=ssl_context
         )
+        set_tcp_nodelay(r_writer)
         logger.info('connecting to {}'.format(dest))
         yield from write_and_drain(r_writer, dest_b)
 

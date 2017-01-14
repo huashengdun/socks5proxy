@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import logging
+import socket
 import sys
 
 
@@ -185,3 +186,8 @@ def clean_tasks(event_loop):
             t.cancel()
     except:
         pass
+
+
+def set_tcp_nodelay(transport):
+    sock = transport.get_extra_info('socket')
+    sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
