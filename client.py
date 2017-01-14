@@ -58,19 +58,19 @@ def request(conf, ssl_context, reader, writer):
     address = writer.get_extra_info('peername')
     logger.info('connected from {}:{}'.format(*address))
     data = yield from reader.read(BUF_SIZE)
-    yield from write_and_drain(writer, b"\x05\x00")
+    yield from write_and_drain(writer, b'\x05\x00')
     data = yield from reader.read(BUF_SIZE)
     mode = ord(data[1:2])
     if mode != 1:
         return
     result = parse_header(data[3:])
-    reply = b"\x05\x00\x00\x01"
+    reply = b'\x05\x00\x00\x01'
     r_reader, r_writer = yield from asyncio.open_connection(
         host=conf.server_ip, port=conf.server_port, ssl=ssl_context
     )
     set_tcp_nodelay(r_writer)
     local = r_writer.get_extra_info('sockname')
-    reply += socket.inet_aton(local[0]) + struct.pack(">H", local[1])
+    reply += socket.inet_aton(local[0]) + struct.pack('>H', local[1])
     yield from write_and_drain(writer, reply)
     # socks5 connection opened
 
