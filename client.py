@@ -47,7 +47,7 @@ def parse_header(data):
     if dest_addr is None:
         return None
     elif type(dest_addr) == bytes:
-        dest_addr = dest_addr.decode()
+        dest_addr = dest_addr.decode('utf-8')
 
     return addrtype, dest_addr, dest_port, header_length
 
@@ -56,27 +56,33 @@ def parse_header(data):
 def request(conf, ssl_context, reader, writer):
     set_tcp_nodelay(writer)
     address = writer.get_extra_info('peername')
-    logger.info('connected from {}:{}'.format(*address))
+    logger.info('Connected from {}:{}'.format(*address))
     data = yield from reader.read(BUF_SIZE)
     yield from write_and_drain(writer, b'\x05\x00')
     data = yield from reader.read(BUF_SIZE)
-    mode = ord(data[1:2])
-    if mode != 1:
-        return
+
+    cmd = ord(data[1:2])
+    if cmd != 1:
+        raise Exception('Command not supported')
+
     result = parse_header(data[3:])
-    reply = b'\x05\x00\x00\x01'
+    if not result:
+        raise Exception('Header cannot be parsed')
+
     r_reader, r_writer = yield from asyncio.open_connection(
         host=conf.server_ip, port=conf.server_port, ssl=ssl_context
     )
     set_tcp_nodelay(r_writer)
+
     local = r_writer.get_extra_info('sockname')
+    reply = b'\x05\x00\x00\x01'
     reply += socket.inet_aton(local[0]) + struct.pack('>H', local[1])
     yield from write_and_drain(writer, reply)
     # socks5 connection opened
 
     dest = '{}:{}'.format(result[1], result[2])
     dest_b = dest.encode('utf-8') + b'\n'
-    logger.info('connecting to {}'.format(dest))
+    logger.info('Connecting to {}'.format(dest))
     yield from write_and_drain(r_writer, dest_b)
 
     while True:
@@ -89,7 +95,7 @@ def request(conf, ssl_context, reader, writer):
             host=conf.server_ip, port=conf.server_port, ssl=ssl_context
         )
         set_tcp_nodelay(r_writer)
-        logger.info('connecting to {}'.format(dest))
+        logger.info('Connecting to {}'.format(dest))
         yield from write_and_drain(r_writer, dest_b)
 
 
@@ -110,10 +116,10 @@ def main():
         functools.partial(request, conf, ssl_context), host=conf.bind_ip,
         port=conf.listen_port
     )
-    logger.info('server address {}:{}'.format(
+    logger.info('Server address {}:{}'.format(
         conf.server_ip, conf.server_port)
     )
-    logger.info('listening on {}:{}'.format(
+    logger.info('Listening on {}:{}'.format(
         conf.bind_ip, conf.listen_port)
     )
     server = event_loop.run_until_complete(factory)
@@ -123,10 +129,10 @@ def main():
     except KeyboardInterrupt:
         clean_tasks(event_loop)
     finally:
-        logger.debug('closing client')
+        logger.debug('Closing client')
         server.close()
         event_loop.run_until_complete(server.wait_closed())
-        logger.debug('closing event loop')
+        logger.debug('Closing event loop')
         event_loop.close()
 
 
