@@ -18,7 +18,7 @@ $ python3 server.py -s 0.0.0.0 -p 10000
 
 ### *On client side*
 ```
-$ python3 client -s <server-ip> -l 1080
+$ python3 client.py -s <server-ip> -l 1080
 
 ```
 
